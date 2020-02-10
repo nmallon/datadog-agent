@@ -14,6 +14,20 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestGetAPIEndpoint(t *testing.T) {
+	testUS := "https://app.datadoghq.com"
+	testEU := "https://app.datadoghq.eu"
+	testOther := "https://foo.net"
+	if getAPIValidationEndpoint(testUS) != "https://api.datadoghq.com" {
+		t.Error("API validation is being done on https://app.datadoghq.com rather than https://api.datadoghq.com")
+	}
+	if getAPIValidationEndpoint(testEU) != "https://api.datadoghq.eu" {
+		t.Error("API validation is being done on https://app.datadoghq.eu rather than https://api.datadoghq.eu")
+	}
+	if getAPIValidationEndpoint(testOther) != testOther {
+		t.Errorf("API endpint for %s was changed during api endpoint assignment", testDomain)
+	}
+}
 func TestHasValidAPIKey(t *testing.T) {
 	ts1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)

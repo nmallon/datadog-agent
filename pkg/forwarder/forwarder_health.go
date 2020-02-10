@@ -9,6 +9,7 @@ import (
 	"expvar"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/DataDog/datadog-agent/pkg/status/health"
@@ -114,8 +115,21 @@ func (fh *forwarderHealth) setAPIKeyStatus(apiKey string, domain string, status 
 	apiKeyStatus.Set(obfuscatedKey, status)
 }
 
+func getAPIValidationEndpoint(domain string) string {
+	apiDomain := ""
+	if strings.HasSuffix(domain, ".com") {
+		apiDomain = "https://api.datadoghq.com"
+	} else if strings.HasSuffix(domain, ".eu") {
+		apiDomain = "https://api.datadoghq.eu"
+	} else {
+		apiDomain = domain
+	}
+	return apiDomain
+}
+
 func (fh *forwarderHealth) validateAPIKey(apiKey, domain string) (bool, error) {
-	url := fmt.Sprintf("%s%s?api_key=%s", domain, v1ValidateEndpoint, apiKey)
+	apiDomain := getAPIValidationEndpoint(domain)
+	url := fmt.Sprintf("%s%s?api_key=%s", apiDomain, v1ValidateEndpoint, apiKey)
 
 	transport := httputils.CreateHTTPTransport()
 
