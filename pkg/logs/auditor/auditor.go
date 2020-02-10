@@ -193,6 +193,11 @@ func (a *Auditor) updateRegistry(identifier string, offset string) {
 		// specially want to avoid storing the offset
 		return
 	}
+	if _, err := time.Parse(config.DateFormat, offset); err != nil {
+		// avoid updating an entry with an invalid offset
+		log.Debugf("updateRegistry error: %v", err)
+		return
+	}
 	a.registry[identifier] = &RegistryEntry{
 		LastUpdated: time.Now().UTC(),
 		Offset:      offset,

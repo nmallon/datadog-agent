@@ -60,14 +60,20 @@ func (suite *AuditorTestSuite) TestAuditorStartStop() {
 }
 
 func (suite *AuditorTestSuite) TestAuditorUpdatesRegistry() {
+	initTime := time.Date(2006, time.January, 12, 1, 1, 1, 1, time.UTC)
 	suite.a.registry = make(map[string]*RegistryEntry)
 	suite.Equal(0, len(suite.a.registry))
+	suite.a.updateRegistry(suite.source.Config.Path, initTime.Format(config.DateFormat))
+	suite.Equal(1, len(suite.a.registry))
+	suite.Equal(initTime.Format(config.DateFormat), suite.a.registry[suite.source.Config.Path].Offset)
+	nextTime := initTime.Add(10 * time.Second)
+	suite.a.updateRegistry(suite.source.Config.Path, nextTime.Format(config.DateFormat))
+	suite.Equal(1, len(suite.a.registry))
+	suite.Equal(nextTime.Format(config.DateFormat), suite.a.registry[suite.source.Config.Path].Offset)
+	//try to updateRegistry with a wrong offset, the offset should not be updated in the registry
 	suite.a.updateRegistry(suite.source.Config.Path, "42")
 	suite.Equal(1, len(suite.a.registry))
-	suite.Equal("42", suite.a.registry[suite.source.Config.Path].Offset)
-	suite.a.updateRegistry(suite.source.Config.Path, "43")
-	suite.Equal(1, len(suite.a.registry))
-	suite.Equal("43", suite.a.registry[suite.source.Config.Path].Offset)
+	suite.Equal(nextTime.Format(config.DateFormat), suite.a.registry[suite.source.Config.Path].Offset)
 }
 
 func (suite *AuditorTestSuite) TestAuditorFlushesAndRecoversRegistry() {

@@ -41,6 +41,8 @@ type Tailer struct {
 	cli         *client.Client
 	source      *config.LogSource
 	tagProvider tag.Provider
+	// readFunc introduced for unit-testing purpose
+	readFunc func(buffer []byte, timeout time.Duration) (int, error)
 
 	sleepDuration      time.Duration
 	shouldStop         bool
@@ -54,7 +56,7 @@ type Tailer struct {
 
 // NewTailer returns a new Tailer
 func NewTailer(cli *client.Client, containerID string, source *config.LogSource, outputChan chan *message.Message, erroredContainerID chan string) *Tailer {
-	return &Tailer{
+	t := &Tailer{
 		ContainerID:        containerID,
 		outputChan:         outputChan,
 		decoder:            InitializeDecoder(source, containerID),
@@ -67,6 +69,8 @@ func NewTailer(cli *client.Client, containerID string, source *config.LogSource,
 		erroredContainerID: erroredContainerID,
 		reader:             newSafeReader(),
 	}
+	t.readFunc = t.read
+	return t
 }
 
 // Identifier returns a string that uniquely identifies a source
@@ -165,7 +169,7 @@ func (t *Tailer) readForever() {
 			return
 		default:
 			inBuf := make([]byte, 4096)
-			n, err := t.read(inBuf, readTimeout)
+			n, err := t.readFunc(inBuf, readTimeout)
 			if err != nil { // an error occurred, stop from reading new logs
 				switch {
 				case isReaderClosed(err):
@@ -186,12 +190,12 @@ func (t *Tailer) readForever() {
 					return
 				case err == io.EOF:
 					// This error is raised when:
-					// * the container is stopping
+					// * the container is stopping.
 					// * when the container has not started to output logs yet.
 					// * during a file rotation.
 					// Ask the Launcher to restart the Tailer, until the Autodiscovery
-					// removes the associated Service.
-					t.source.Status.Error(err)
+					// removes the associated Service to completely stop the Tailer.
+					t.source.Status.Error(fmt.Errorf("log decoder returns an EOF error that will trigger a Tailer restart"))
 					log.Debugf("No new logs are available for container %v", ShortContainerID(t.ContainerID))
 					t.erroredContainerID <- t.ContainerID
 					return
